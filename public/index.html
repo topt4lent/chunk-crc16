@@ -403,16 +403,18 @@ function stopTimer() {
                   
         startTimer();
                       // Insert progress bar after send button
-            const sendImgDiv = document.querySelector('.send-img');
+        const sendImgDiv = document.querySelector('.send-img');
         sendImgDiv.appendChild(progressContainer);
 
         const reader = new FileReader();
         reader.onload = function (event) {
             const base64String = event.target.result;
-            const crc = calculateCRC16(base64String);
-            const messageWithCRC = `${base64String}|${crc}`;
+            console.log(base64String);
+           // const crc = calculateCRC16(base64String);
+           // const messageWithCRC = `${base64String}|${crc}`;
             if (selectedPort) {
-                socket.emit("send_data", { portName: selectedPort, message: messageWithCRC });
+                console.log('sending file');
+                socket.emit("send_data", { portName: selectedPort, message: base64String });
             }
         };
         reader.readAsDataURL(file);
