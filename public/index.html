@@ -206,7 +206,7 @@
                <input type="number" id="baudRate" value="9600">
            </div>
            <div class="btn-group" style="justify-content: center;padding-top: 8px;">
-               <button class="open-btn" onclick="connectPort(closeModal())">Open</button>
+               <button class="open-btn" onclick="connectPort().then(closeModal)">Open</button>
                <button class="close-btn" onclick="disconnectPort()">Disconnect</button>
                <button class="cancel-btn" onclick="closeModal()">close</button>
            </div>
@@ -257,6 +257,7 @@
                portSelect.appendChild(option);
            });
        });
+       socket.on("port_error", () => alert("Failed to open port."));
 
    async function connectPort() {
     selectedPort = document.getElementById("portSelect").value;

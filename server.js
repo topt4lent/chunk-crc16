@@ -113,6 +113,7 @@ io.on("connection", (socket) => {
             socket.emit("send_error", { portName, error: "Port not open" });
             return;
         }
+        console.log(message);
 
         const port = activePorts[portName];
         const dataBuffer = Buffer.from(message);
@@ -120,13 +121,15 @@ io.on("connection", (socket) => {
         const maxRetries = 3;
 
         while (sentBytes < dataBuffer.length) {
-            const chunk = dataBuffer.slice(sentBytes, sentBytes + chunkSize).toString();
+            const chunk = dataBuffer.subarray(sentBytes, sentBytes + chunkSize).toString();
             const chunkWithCRC = addCRC(chunk);
             let ackReceived = false;
-
+            console.log(`whileloop : ${chunkWithCRC}`);
             for (let retries = 0; retries < maxRetries; retries++) {
+                console.log(`retire: ${retries}`)
                 await new Promise((resolve, reject) => {
                     port.write(chunkWithCRC, (err) => {
+                        console.log(chunkWithCRC);
                         if (err) {
                             reject(err);
                         } else {
