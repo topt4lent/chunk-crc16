@@ -1,0 +1,36 @@
+{
+  "dependencies": {
+    "@serialport/parser-readline": "^13.0.0",
+    "crc": "^4.3.2",
+    "express": "^4.21.2",
+    "serialport": "^13.0.0",
+    "socket.io": "^4.8.1"
+  },
+  "name": "chunk-crc16",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "pkg": {
+    "assets": [
+      "node_modules/**/*",
+      "node_modules/@serialport/bindings-cpp/**/*"
+    ],
+    "scripts": [
+      "node_modules/@serialport/bindings-cpp/**/*.js"
+    ],
+    "targets": [
+      "node18-linux-x64",
+      "node18-macos-x64",
+      "node18-win-x64"
+    ]
+  },
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "pkg .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

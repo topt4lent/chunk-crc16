@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Serial Port Communication</title>
+   <script src="/socket.io/socket.io.js"></script>
+   <style>
+       body {
+           font-family: Arial, sans-serif;
+           margin: 0;
+           padding: 20px;
+           background-color: #f5f5f5;
+       }
+
+       .container {
+           max-width: 800px;
+           margin: 0 auto;
+       }
+
+       .serial-section {
+           background: white;
+           padding: 20px;
+           border-radius: 8px;
+           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+           margin-bottom: 20px;
+       }
+
+       .output-box {
+           height: 180px;
+           border: 1px solid #ddd;
+           padding: 10px;
+           overflow-y: auto;
+           background: #f9f9f9;
+           border-radius: 4px;
+           margin-bottom: 20px;
+       }
+
+       .input-group {
+           margin: 10px 0;
+       }
+
+       .input-group label {
+           display: block;
+           margin-bottom: 5px;
+       }
+
+       .input-group input,
+       .input-group select {
+           width: 100%;
+           padding: 8px;
+           border: 1px solid #ddd;
+           border-radius: 4px;
+       }
+
+       .send-box {
+           display: flex;
+           gap: 10px;
+       }
+
+       .send-box input {
+           flex: 1;
+       }
+
+       .upload-section {
+           margin-top: 20px;
+           padding-top: 20px;
+           border-top: 1px solid #eee;
+       }
+
+       button {
+           padding: 8px 16px;
+           border: none;
+           border-radius: 4px;
+           cursor: pointer;
+           transition: background-color 0.3s;
+       }
+       .status-port {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+       
+        display: inline-block;
+        margin-left: 10px;
+       }
+       .send-btn {
+           background-color: #4CAF50;
+           color: white;
+       }
+
+       .send-btn:hover {
+           background-color: #45a049;
+       }
+
+       #configButton {
+           background-color: #2196F3;
+           color: white;
+       }
+
+       #configButton:hover {
+           background-color: #1976D2;
+       }
+
+       .btn-group {
+           display: flex;
+           gap: 10px;
+       }
+
+       .open-btn {
+           background-color: #4CAF50;
+           color: white;
+       }
+
+       .close-btn {
+           background-color: #f44336;
+           color: white;
+       }
+
+       .cancel-btn {
+           background-color: #607D8B;
+           color: white;
+       }
+
+       .modal {
+           position: fixed;
+           z-index: 1;
+           left: 0;
+           top: 0;
+           width: 100%;
+           height: 100%;
+           background-color: rgba(0, 0, 0, 0.5);
+           display: flex;
+           align-items: center;
+           justify-content: center;
+           visibility: hidden;
+           opacity: 0;
+           transition: opacity 0.3s ease-in-out, visibility 0.3s;
+       }
+
+       .modal-content {
+           background: white;
+           padding: 20px;
+           border-radius: 8px;
+           width: 350px;
+           max-width: 90%;
+           text-align: center;
+           position: relative;
+           box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+       }
+
+       .modal.show {
+           visibility: visible;
+           opacity: 1;
+       }
+
+       .progress-container {
+           margin-top: 10px;
+           width: 100%;
+       }
+
+       .progress-bar {
+           width: 100%;
+           height: 20px;
+           background-color: #f0f0f0;
+           border-radius: 10px;
+           overflow: hidden;
+       }
+
+       .progress {
+           width: 0%;
+           height: 100%;
+           background-color: #4CAF50;
+           transition: width 0.3s ease-in-out;
+       }
+
+       .progress-text {
+           text-align: center;
+           margin-top: 5px;
+           font-size: 14px;
+       }
+
+       .send-img {
+           display: flex;
+           flex-direction: column;
+           gap: 10px;
+           margin-top: 10px;
+       }
+
+       #imgout {
+           max-width: 100%;
+           margin-top: 10px;
+           border-radius: 4px;
+       }
+   </style>
+</head>
+<body>
+   <div id="configModal" class="modal">
+       <div class="modal-content">
+           <h2>🔧 Configure Serial Port</h2>
+           <div class="input-group">
+               <label for="portSelect">Select COM Port:</label>
+               <select id="portSelect"></select>
+           </div>
+           <div class="input-group">
+               <label for="baudRate">Baud Rate:</label>
+               <input type="number" id="baudRate" value="9600">
+           </div>
+           <div class="btn-group" style="justify-content: center;padding-top: 8px;">
+               <button class="open-btn" onclick="connectPort(closeModal())">Open</button>
+               <button class="close-btn" onclick="disconnectPort()">Disconnect</button>
+               <button class="cancel-btn" onclick="closeModal()">close</button>
+           </div>
+       </div>
+   </div>
+
+   <div class="container">
+       <div class="serial-section">
+           <h5>COM Port status : <div id="status-port" class="status-port" style=" background-color: gray;"></div></h5> 
+           <h3>📡 Data Received</h3> 
+           <div id="output" class="output-box"></div>
+           <h3 id="h-image" style="display:none;">🏞️ Image Received</h3>
+           <img id="imgout" src=""/>
+           <h3 id="h-pdf" style="display: none;">📄 PDF Received</h3>
+            <iframe id="pdfViewer" style="width:100%; height:500px;display: none;"></iframe>
+           <div class="input-group send-box">
+               <input type="text" id="inputMessage" placeholder="Type message...">
+               <button class="send-btn" onclick="sendMessage()">Send Message</button>
+           </div>
+
+           <div class="upload-section">
+               <input type="file" id="imageInput" accept="image/*">
+               <div class="send-img">
+                   <button class="send-btn" onclick="convertToBase64()">Convert & Send</button>
+               </div>
+           </div>
+         
+           <div class="timer-text" id="timerText" style="display: none;">Time: 0s</div>
+           <button class="cancel-btn" id="cancelUpload" style="display: none;" >Cancel</button>
+           
+           
+       </div>
+       <button id="configButton">🔧 Configure Port</button>
+   </div>
+
+   <script>
+       const socket = io();
+       let selectedPort = null;
+
+       socket.emit("get_ports");
+       socket.on("ports_list", (ports) => {
+           const portSelect = document.getElementById("portSelect");
+           portSelect.innerHTML = "";
+           ports.forEach(port => {
+               const option = document.createElement("option");
+               option.value = port;
+               option.textContent = port;
+               portSelect.appendChild(option);
+           });
+       });
+
+   async function connectPort() {
+    selectedPort = document.getElementById("portSelect").value;
+    const baudRate = document.getElementById("baudRate").value;
+    socket.emit("open_port", { portName: selectedPort, baudRate });
+
+    // รอการตอบกลับจาก event "port_opened"
+    await new Promise(resolve => {
+        socket.on("port_opened", () => {
+            document.getElementById("status-port").style.backgroundColor = "lightgreen";
+            resolve(); // เมื่อทำงานเสร็จให้ resolve เพื่อให้ await หยุด
+        });
+    });
+}
+
+       function disconnectPort() {
+           if (selectedPort) {
+               socket.emit("close_port", selectedPort);
+               selectedPort = null;
+           }
+           document.getElementById("status-port").style.backgroundColor = "gray";
+       }
+
+
+       socket.on('send_progress', (data) => {
+           const progressBar = document.getElementById('uploadProgress');
+           const progressText = document.getElementById('progressText');
+           if (progressBar && progressText) {
+               progressBar.style.width = `${data.progress}%`;
+               progressText.textContent = `${data.progress}%`;
+            
+           }
+   
+    
+       });
+
+       socket.on('send_complete', (data) => {
+        stopTimer();
+           const progressContainer = document.querySelector('.progress-container');
+           if (progressContainer) {
+               setTimeout(() => {
+                   progressContainer.remove();
+               }, 2000);
+           }
+           document.getElementById("cancelUpload").style.display = "none";
+           console.log(`Upload complete! Total sent: ${data.totalSent} bytes`);
+       });
+
+       socket.on('send_error', (data) => {
+           alert(`Error sending data: ${data.error}`);
+           const progressContainer = document.querySelector('.progress-container');
+           if (progressContainer) {
+               progressContainer.remove();
+           }
+       });
+
+       socket.on("crc_error", (info) => {
+        console.warn(`CRC error from ${info.portName}. Requesting retransmission.`);
+        });
+
+       function openModal() {
+           const modal = document.getElementById("configModal");
+           modal.classList.add("show");
+       }
+
+       function closeModal() {
+           const modal = document.getElementById("configModal");
+           modal.classList.remove("show");
+       }
+
+       document.getElementById("configButton").addEventListener("click", openModal);
+
+
+
+       function calculateCRC16(data) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < data.length; i++) {
+            crc ^= data.charCodeAt(i);
+            for (let j = 0; j < 8; j++) {
+                if (crc & 1) {
+                    crc = (crc >> 1) ^ 0xA001;
+                } else {
+                    crc >>= 1;
+                }
+            }
+        }
+        return crc.toString(16).toUpperCase().padStart(4, '0'); // ส่งค่าเป็น HEX 4 หลัก
+    }
+
+    function sendMessage() {
+        const message = document.getElementById("inputMessage").value;
+        if (selectedPort && message.trim() !== "") {
+            const crc = calculateCRC16(message);
+            const messageWithCRC = `${message}|${crc}`;
+            socket.emit("send_data", { portName: selectedPort, message: messageWithCRC });
+            document.getElementById("inputMessage").value = "";
+        }
+    }
+
+    let startTime = null;
+    let timerInterval = null;
+
+// ฟังก์ชันเริ่มต้นตัวจับเวลา
+function startTimer() {
+    startTime = Date.now();
+    timerInterval = setInterval(() => {
+        const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+        const timerText = document.getElementById('timerText');
+        if (timerText) {
+            timerText.textContent = `Time: ${elapsedTime}s`;
+        }
+    }, 1000);
+}
+function stopTimer() {
+        clearInterval(timerInterval);
+    }
+
+    function convertToBase64() {
+        const fileInput = document.getElementById("imageInput");
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert("Please select an image file first!");
+            return;
+        }
+
+           // Remove existing progress container if any
+           const existingProgress = document.querySelector('.progress-container');
+           if (existingProgress) {
+               existingProgress.remove();
+           }
+            const cancelUploadBtn = document.getElementById("cancelUpload")
+            cancelUploadBtn.style.display = "block";
+             const timerText = document.getElementById('timerText');
+           timerText.style.display ="block";
+           // Create progress container
+           const progressContainer = document.createElement('div');
+           progressContainer.className = 'progress-container';
+           progressContainer.innerHTML = `<div class="progress-bar">
+                                                <div class="progress" id="uploadProgress"></div>
+                                            </div>
+                                            <div class="progress-text" id="progressText">0%</div>
+                                        `;
+                  
+        startTimer();
+                      // Insert progress bar after send button
+            const sendImgDiv = document.querySelector('.send-img');
+        sendImgDiv.appendChild(progressContainer);
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            const base64String = event.target.result;
+            const crc = calculateCRC16(base64String);
+            const messageWithCRC = `${base64String}|${crc}`;
+            if (selectedPort) {
+                socket.emit("send_data", { portName: selectedPort, message: messageWithCRC });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
+    socket.on("serial_data", ({ portName, data }) => {
+        const outputDiv = document.getElementById("output");
+        const outputImg = document.getElementById("imgout");
+
+        const [receivedData, receivedCRC] = data.split("|");
+
+        if (!receivedCRC || calculateCRC16(receivedData) !== receivedCRC) {
+            outputDiv.innerHTML += `<p style="color: red;"><strong>Error:</strong> CRC mismatch! Data may be corrupted.</p>`;
+            return;
+        }
+
+        if (receivedData.startsWith("data:image")) {
+            const hImage = document.getElementById("h-image")
+            hImage.style.display = "block";
+
+            outputImg.src = receivedData;
+        }else if (receivedData.startsWith("data:application/pdf")) {
+            const pdfViewer = document.getElementById("pdfViewer");
+            const hPdf = document.getElementById("h-pdf")
+            hPdf.style.display = "block";
+            pdfViewer.src = receivedData;
+            pdfViewer.style.display = "block";
+       
+        }else { outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${receivedData}</p>`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;  }
+    });
+
+    document.getElementById("inputMessage").addEventListener("keypress", function (event) {
+    if (event.key === "Enter") {
+        event.preventDefault();  // ป้องกันการขึ้นบรรทัดใหม่
+        sendMessage();           // เรียกใช้ฟังก์ชันส่งข้อความ
+    }
+    });
+
+    function cancelUpload(){
+        if (selectedPort){
+        socket.emit("cancel_upload", { portName: selectedPort });
+        }
+       
+    }
+    
+    document.getElementById('cancelUpload').addEventListener('click', () => {
+     
+        cancelUpload(); // แจ้งเซิร์ฟเวอร์ให้หยุดการส่งข้อมูล
+        const cancelUploadBtn = document.getElementById("cancelUpload")
+        cancelUploadBtn.style.display = "none";
+        const timerText = document.getElementById('timerText');
+        timerText.style.display ="none";
+      
+        stopTimer();
+        document.querySelector('.progress-container')?.remove();
+        console.log(`Upload canceled!:${selectedPort}`);
+    });
+
+
+   </script>
+</body>
+</html>
