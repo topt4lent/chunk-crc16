@@ -421,28 +421,25 @@ function stopTimer() {
         };
         reader.readAsDataURL(file);
     }
-    let bufferedData = ""; // ตัวแปรเก็บข้อมูลทั้งหมดที่รับมา
 
-socket.on("serial_data", ({ portName, data }) => {
+    
+    socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
-   // console.log(data);
-  //  const receivedData = data.slice(0, -4).trim(); // ตัด 4 ตัวสุดท้ายออก
-   // const [receivedData, receivedCRC] = data.split("|");
-   //console.log("reviced data : ",receivedData);
+    
     // เก็บข้อมูลที่ได้รับลงใน buffer
     bufferedData += data;
-   // console.log("reviced data : ",bufferedData);
+
     // ถ้ายังไม่เจอ "|EOF" ให้รอข้อมูลต่อ
     if (!bufferedData.includes("|EOF")) {
         console.log("⌛ Waiting for more data...");
         return;  // ยังไม่ได้ข้อมูลครบไม่ต้องทำอะไร
     }
 
-
     // เมื่อเจอ "|EOF" ให้ตัด EOF ออก
     bufferedData = bufferedData.slice(0, -4).trim(); // ตัดข้อมูลหลัง |EOF ออก
-    console.log("after buffer data : ",bufferedData);
+    console.log("after buffer data : ", bufferedData);
+
     // ถ้าเป็นข้อมูลภาพ
     if (bufferedData.startsWith("data:image")) {
         const hImage = document.getElementById("h-image");
@@ -467,9 +464,12 @@ socket.on("serial_data", ({ portName, data }) => {
         outputDiv.scrollTop = outputDiv.scrollHeight;  // เลื่อนหน้าจอลงไปยังข้อความล่าสุด
     }
 
-    // รีเซ็ต bufferedData หลังจากแสดงผล
-    bufferedData = "";  // รีเซ็ต buffer หลังจากทำงานแล้ว
+    // รีเซ็ต bufferedData หลังจากแสดงผล ACK หรือข้อความทั่วไป
+    if (bufferedData === "ACK" || bufferedData !== "") {
+        bufferedData = "";  // รีเซ็ต buffer หลังจากทำงานแล้ว
+    }
 });
+
 
 
     document.getElementById("inputMessage").addEventListener("keypress", function (event) {
