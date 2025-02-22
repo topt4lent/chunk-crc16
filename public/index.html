@@ -350,9 +350,9 @@
     function sendMessage() {
         const message = document.getElementById("inputMessage").value;
         if (selectedPort && message.trim() !== "") {
-            const crc = calculateCRC16(message);
-            const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_data", { portName: selectedPort, message: messageWithCRC });
+            //const crc = calculateCRC16(message);
+            //const messageWithCRC = `${message}|${crc}`;
+            socket.emit("send_data", { portName: selectedPort, message: message });
             document.getElementById("inputMessage").value = "";
         }
     }
@@ -421,40 +421,56 @@ function stopTimer() {
         };
         reader.readAsDataURL(file);
     }
-    let bufferedData = "";
-    socket.on("serial_data", ({ portName, data }) => {
-        const outputDiv = document.getElementById("output");
-        const outputImg = document.getElementById("imgout");
+    let bufferedData = ""; // ตัวแปรเก็บข้อมูลทั้งหมดที่รับมา
 
-       const [receivedData, receivedCRC] = data.split("|");
-       bufferedData += receivedData;
-       if (!bufferedData.includes("|EOF")) {
+socket.on("serial_data", ({ portName, data }) => {
+    const outputDiv = document.getElementById("output");
+    const outputImg = document.getElementById("imgout");
+   // console.log(data);
+  //  const receivedData = data.slice(0, -4).trim(); // ตัด 4 ตัวสุดท้ายออก
+   // const [receivedData, receivedCRC] = data.split("|");
+   //console.log("reviced data : ",receivedData);
+    // เก็บข้อมูลที่ได้รับลงใน buffer
+    bufferedData += data;
+   // console.log("reviced data : ",bufferedData);
+    // ถ้ายังไม่เจอ "|EOF" ให้รอข้อมูลต่อ
+    if (!bufferedData.includes("|EOF")) {
         console.log("⌛ Waiting for more data...");
-        return;
+        return;  // ยังไม่ได้ข้อมูลครบไม่ต้องทำอะไร
     }
+
+
     // เมื่อเจอ "|EOF" ให้ตัด EOF ออก
-    bufferedData = bufferedData.replace("|EOF", "").trim();
+    bufferedData = bufferedData.slice(0, -4).trim(); // ตัดข้อมูลหลัง |EOF ออก
+    console.log("after buffer data : ",bufferedData);
+    // ถ้าเป็นข้อมูลภาพ
+    if (bufferedData.startsWith("data:image")) {
+        const hImage = document.getElementById("h-image");
+        hImage.style.display = "block";
+        outputImg.src = bufferedData;
+    } 
+    // ถ้าเป็นไฟล์ PDF
+    else if (bufferedData.startsWith("data:application/pdf")) {
+        const pdfViewer = document.getElementById("pdfViewer");
+        const hPdf = document.getElementById("h-pdf");
+        hPdf.style.display = "block";
+        pdfViewer.src = bufferedData;
+        pdfViewer.style.display = "block";
+    } 
+    // ถ้าเป็น ACK
+    else if (bufferedData === "ACK") {
+        outputDiv.innerHTML += `<p>✅ Send success</p>`;
+    } 
+    // ถ้าเป็นข้อมูลข้อความทั่วไป
+    else {
+        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;  // เลื่อนหน้าจอลงไปยังข้อความล่าสุด
+    }
 
-        // if (!receivedCRC || calculateCRC16(receivedData) !== receivedCRC) {
-        //     outputDiv.innerHTML += `<p style="color: red;"><strong>Error:</strong> CRC mismatch! Data may be corrupted.</p>`;
-        //     return;
-        // }
+    // รีเซ็ต bufferedData หลังจากแสดงผล
+    bufferedData = "";  // รีเซ็ต buffer หลังจากทำงานแล้ว
+});
 
-        if (bufferedData.startsWith("data:image")) {
-            const hImage = document.getElementById("h-image")
-            hImage.style.display = "block";
-
-            outputImg.src = bufferedData;
-        }else if (bufferedData.startsWith("data:application/pdf")) {
-            const pdfViewer = document.getElementById("pdfViewer");
-            const hPdf = document.getElementById("h-pdf")
-            hPdf.style.display = "block";
-            pdfViewer.src = bufferedData;
-            pdfViewer.style.display = "block";
-        }else if (bufferedData ==="ACK"){outputDiv.innerHTML +=`<p>✅send success</p>`
-        }else { outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
-        outputDiv.scrollTop = outputDiv.scrollHeight;  }
-    });
 
     document.getElementById("inputMessage").addEventListener("keypress", function (event) {
     if (event.key === "Enter") {
