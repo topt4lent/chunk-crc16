@@ -27,7 +27,7 @@
        }
 
        .output-box {
-           height: 180px;
+           height: 140px;
            border: 1px solid #ddd;
            padding: 10px;
            overflow-y: auto;
@@ -215,13 +215,15 @@
 
    <div class="container">
        <div class="serial-section">
-           <h5>COM Port status : <div id="status-port" class="status-port" style=" background-color: gray;"></div></h5> 
-           <h3>📡 Data Received</h3> 
+           <label>COM Port status : <div id="status-port" class="status-port" style=" background-color: gray;"></div></label></br></br> 
+           <label>📡 Data Received</label> 
            <div id="output" class="output-box"></div>
-           <h3 id="h-image" style="display:none;">🏞️ Image Received</h3>
+           <label id="h-image" style="display:none;">🏞️ Image Received</label>
            <img id="imgout" src=""/>
-           <h3 id="h-pdf" style="display: none;">📄 PDF Received</h3>
+           <label id="h-pdf" style="display: none;">📄 PDF Received</label>
             <iframe id="pdfViewer" style="width:100%; height:500px;display: none;"></iframe>
+            <label>✅Acknowlede</label> 
+            <div id="output-ack" class="output-box" style="height: 120px;"></div>
            <div class="input-group send-box">
                <input type="text" id="inputMessage" placeholder="Type message...">
                <button class="send-btn" onclick="sendMessage()">Send Message</button>
@@ -427,10 +429,16 @@ function stopTimer() {
 socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
+    const outputAck = document.getElementById("output-ack");
 
     // ✅ ถ้าเป็น ACK → แสดงผลทันที
     if (data === ("ACK")) {
-        outputDiv.innerHTML += `<p>✅ Send success</p>`;
+        outputAck.innerHTML += `<p>✅ Send success</p>`;
+        outputAck.scrollTop = outputAck.scrollHeight;
+        return;
+    }else if (data.includes("NACK")){
+        outputAck.innerHTML += `<p>❌Error response is NACK </p>`;
+        outputAck.scrollTop = outputAck.scrollHeight;
         return;
     }
 

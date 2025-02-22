@@ -138,13 +138,17 @@ io.on("connection", (socket) => {
         const port = activePorts[portName];
         const dataBuffer = Buffer.from(message,"utf-8");
         let sentBytes = 0;
+        const totalLength = dataBuffer.length;
         const maxRetries = 3;
 
-        while (sentBytes < dataBuffer.length) {
-            const chunk = dataBuffer.subarray(sentBytes, sentBytes + chunkSize).toString();
+        while (sentBytes < totalLength) {
+            
+            const progress = Math.floor((sentBytes / totalLength) * 100);
+            socket.emit("send_progress", { portName, progress, sent: sentBytes, total: totalLength });
+
+            const chunk = dataBuffer.slice(sentBytes, sentBytes + chunkSize).toString();
             const chunkWithCRC = addCRC(chunk);
             let ackReceived = false;
-            console.log(`whileloop : ${chunkWithCRC}`);
             for (let retries = 0; retries < maxRetries; retries++) {
 
                 //console.log(`for loop : ${chunkWithCRC}`);
@@ -157,14 +161,13 @@ io.on("connection", (socket) => {
                    
                    await new Promise((resolve, reject) => {
                         port.write(chunkWithCRC, (err) => {
-                            console.log(`write: ${chunkWithCRC}`);
+                            console.log(`Try ${retries}`);
                             if (err) {
                                 console.log(err);
                                 reject(err);
                             } else {
                                 console.log(`✅ Sent chunk to ${portName}: ${chunkWithCRC}`);
                                 console.log(`⏳ Waiting for ACK...`);
-                                console.log(`Sent chunk to ${portName}: ${chunkWithCRC}`);
                                 resolve();
                             }
                         });
@@ -173,7 +176,7 @@ io.on("connection", (socket) => {
                     socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
             
                         // รอ ACK พร้อม timeout (3 วินาที)
-                        ackReceived = await new Promise((resolve) => {
+                        ackReceived = new Promise((resolve) => {
                             pendingAcks[portName] = resolve;
                             console.log(`🟢 Set pendingAcks[${portName}]`);
                         
@@ -183,7 +186,7 @@ io.on("connection", (socket) => {
                                     resolve(false);
                                     delete pendingAcks[portName];
                                 }
-                            }, 3000);
+                            }, 5000);
                         });
             
                     if (ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
