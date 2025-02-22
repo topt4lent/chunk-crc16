@@ -67,25 +67,36 @@ io.on("connection", (socket) => {
             // Listen for incoming data
             parser.on("data", (data) => {
                 console.log(`Received from ${portName}: ${data}`);
+
+                if (data.trim() === "ACK") {
+                    console.log("✅ Received ACK!");
+                    if (pendingAcks[portName]) {
+                        console.log("🔵 Resolving pending ACK...");
+                        pendingAcks[portName](true);
+                        delete pendingAcks[portName];
+                    }
+                    return;
+                }
+
                 if (checkCRC(data)) {
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
-                    console.log(`ack success`);
+                    console.log("✅ Data CRC check passed");
                     const ackMessage = "ACK";
                     const ackWithCRC = addCRC(ackMessage)
                     activePorts[portName].write(`${ackWithCRC}\n`)
                     // Notify the sender if they are waiting for an ACK
                     if (pendingAcks[portName]) {
+                        console.log("🔵 Resolving pending ACK...");
                         pendingAcks[portName](true);
-                        console.log(`ack success`)
                         delete pendingAcks[portName];
                     }
 
                     socket.emit("ack", { portName });
                 } else {
                     const nackMessage = "NACK";
-                    const nackWithCRC = addCRC(ackMessage)
+                    const nackWithCRC = addCRC(nackMessage)
                     activePorts[portName].write(`${nackWithCRC}\n`)
-                    console.log(`ack success`)
+                    console.log("❌ CRC failed, sending NACK");
                     socket.emit("nack", { portName });
                     // Notify sender if waiting for ACK
                     if (pendingAcks[portName]) {
