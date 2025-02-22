@@ -352,7 +352,7 @@
         if (selectedPort && message.trim() !== "") {
             //const crc = calculateCRC16(message);
             //const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_data", { portName: selectedPort, message: `data:msg${message}|EOM` });
+            socket.emit("send_data", { portName: selectedPort, message: `data:msg${message}` });
             document.getElementById("inputMessage").value = "";
         }
     }
@@ -422,50 +422,41 @@ function stopTimer() {
         reader.readAsDataURL(file);
     }
 
-    let bufferedData = ""; // ตัวแปรเก็บข้อมูลทั้งหมดที่รับมา
-    socket.on("serial_data", ({ portName, data }) => {
+    let bufferedData = ""; // ใช้เก็บข้อมูล chunk ที่เข้ามา
+
+socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
 
-    switch (true) {
-        // 📷 รูปภาพ หรือ PDF → เก็บลง buffer
-        case data.startsWith("data:image"):
-        case data.startsWith("data:application/pdf"):
-            bufferedData += data;
-            break;
-
-        // ✉️ ข้อความ `data:msg` → เก็บลง buffer
-        case data.startsWith("data:msg"):
-            bufferedData += data.replace("data:msg", "").trim();
-            break;
-
-        // ✅ กรณี ACK → แสดงข้อความ "Send success"
-        case data === "ACK":
-            outputDiv.innerHTML += `<p>✅ Send success</p>`;
-            return;
-
-        // 📝 ข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
-        default:
-            outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data}</p>`;
-            outputDiv.scrollTop = outputDiv.scrollHeight;
-            return;
+    // ✅ ถ้าเป็น ACK → แสดงผลทันที
+    if (data === ("ACK")) {
+        outputDiv.innerHTML += `<p>✅ Send success</p>`;
+        return;
     }
 
-    // 📌 เจอ `|EOF` → แสดงผลรูปภาพหรือ PDF
+    // ✅ ถ้าเป็นข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
+    if (data.startsWith("data:msg")) {
+        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data.slice(8)}</p>`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+        return;
+    }
+
+    // ✅ ถ้าเป็น `data:image`, `data:application/pdf`, หรือ `data:msg` → เก็บ chunk ลง buffer
+    bufferedData += data;
+
+    // 📌 เมื่อเจอ `|EOF` → ไฟล์รูปภาพหรือ PDF ครบถ้วนแล้ว แสดงผล
     if (bufferedData.includes("|EOF")) {
-        bufferedData = bufferedData.replace("|EOF", "").trim();
+        bufferedData = bufferedData.replace("|EOF", "").trim(); // ลบ `|EOF`
 
         switch (true) {
             case bufferedData.startsWith("data:image"):
-                const hImage = document.getElementById("h-image");
-                hImage.style.display = "block";
+                document.getElementById("h-image").style.display = "block";
                 outputImg.src = bufferedData;
                 break;
 
             case bufferedData.startsWith("data:application/pdf"):
                 const pdfViewer = document.getElementById("pdfViewer");
-                const hPdf = document.getElementById("h-pdf");
-                hPdf.style.display = "block";
+                document.getElementById("h-pdf").style.display = "block";
                 pdfViewer.src = bufferedData;
                 pdfViewer.style.display = "block";
                 break;
@@ -475,9 +466,9 @@ function stopTimer() {
         return;
     }
 
-    // 📌 เจอ `|EOM` → แสดงผลข้อความ `data:msg`
+    // 📌 เมื่อเจอ `|EOM` → ข้อความ `data:msg` ครบถ้วนแล้ว แสดงผล
     if (bufferedData.includes("|EOM")) {
-        const textData = bufferedData.replace("|EOM", "").trim();
+        const textData = bufferedData.replace("data:msg", "").replace("|EOM", "").trim(); // ลบ `data:msg` และ `|EOM`
         outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${textData}</p>`;
         outputDiv.scrollTop = outputDiv.scrollHeight;
         bufferedData = ""; // รีเซ็ต buffer

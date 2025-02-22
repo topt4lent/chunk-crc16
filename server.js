@@ -82,11 +82,11 @@ io.on("connection", (socket) => {
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
                     console.log("✅ Data CRC check passed");
                     if (!data.includes("ACK")) {
-                    activePorts[portName].write(`ACK\n`)
+                    activePorts[portName].write("ACK\n")
                     }
                     // Notify the sender if they are waiting for an ACK
                     if (pendingAcks[portName]) {
-                        console.log("🔵 Resolving pending ACK...");
+                        console.log("🔵 Resolving pending ACK FORM CRCCHECK...");
                         pendingAcks[portName](true);
                         delete pendingAcks[portName];
                     }
@@ -94,7 +94,7 @@ io.on("connection", (socket) => {
                     socket.emit("ack", { portName });
                 } else {
                     if (!data.includes("NACK")) {
-                    activePorts[portName].write(`NACK\n`)}
+                    activePorts[portName].write("NACK\n")}
                     console.log("❌ CRC failed, sending NACK");
                     socket.emit("nack", { portName });
                     // Notify sender if waiting for ACK
@@ -179,7 +179,7 @@ io.on("connection", (socket) => {
                                     resolve(false);
                                     delete pendingAcks[portName];
                                 }
-                            }, 3000);
+                            }, 5000);
                         });
             
                     if (ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
