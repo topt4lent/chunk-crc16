@@ -426,54 +426,65 @@ function stopTimer() {
     socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
-    if (data === "ACK") {
-        outputDiv.innerHTML += `<p>✅ Send success</p>`;
-        // รีเซ็ต bufferedData หลังจากแสดงผล ACK หรือข้อความทั่วไป
-    }
 
-    // เก็บข้อมูลที่ได้รับลงใน buffer
-    if (data.includes('data:msg')){
-        bufferedData += data;
-        if (!bufferedData.includes("|EOM")){
-            console.log("waiting end of message");
+    switch (true) {
+        // 📷 รูปภาพ หรือ PDF → เก็บลง buffer
+        case data.startsWith("data:image"):
+        case data.startsWith("data:application/pdf"):
+            bufferedData += data;
+            break;
+
+        // ✉️ ข้อความ `data:msg` → เก็บลง buffer
+        case data.startsWith("data:msg"):
+            bufferedData += data.replace("data:msg", "").trim();
+            break;
+
+        // ✅ กรณี ACK → แสดงข้อความ "Send success"
+        case data === "ACK":
+            outputDiv.innerHTML += `<p>✅ Send success</p>`;
             return;
-    }} 
-    if (data.includes("data:image"||"data:application/pdf")){
-        bufferedData += data;
-    // ถ้ายังไม่เจอ "|EOF" ให้รอข้อมูลต่อ
-    if (!bufferedData.includes("|EOF")) {
-        console.log("⌛ Waiting for more data...");
-        return;  // ยังไม่ได้ข้อมูลครบไม่ต้องทำอะไร
-    }}
 
-    // เมื่อเจอ "|EOF" ให้ตัด EOF ออก
-    bufferedData = bufferedData.slice(0, -4).trim(); // ตัดข้อมูลหลัง |EOF ออก
-    console.log("after buffer data : ", bufferedData);
-
-    // ถ้าเป็นข้อมูลภาพ
-    if (bufferedData.startsWith("data:image")) {
-        const hImage = document.getElementById("h-image");
-        hImage.style.display = "block";
-        outputImg.src = bufferedData;
-    } 
-    // ถ้าเป็นไฟล์ PDF
-    else if (bufferedData.startsWith("data:application/pdf")) {
-        const pdfViewer = document.getElementById("pdfViewer");
-        const hPdf = document.getElementById("h-pdf");
-        hPdf.style.display = "block";
-        pdfViewer.src = bufferedData;
-        pdfViewer.style.display = "block";
-    } 
-    // ถ้าเป็น ACK
-    
-    // ถ้าเป็นข้อมูลข้อความทั่วไป
-    else {
-        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
-        outputDiv.scrollTop = outputDiv.scrollHeight;  // เลื่อนหน้าจอลงไปยังข้อความล่าสุด
+        // 📝 ข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
+        default:
+            outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data}</p>`;
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+            return;
     }
 
-bufferedData ="";
+    // 📌 เจอ `|EOF` → แสดงผลรูปภาพหรือ PDF
+    if (bufferedData.includes("|EOF")) {
+        bufferedData = bufferedData.replace("|EOF", "").trim();
+
+        switch (true) {
+            case bufferedData.startsWith("data:image"):
+                const hImage = document.getElementById("h-image");
+                hImage.style.display = "block";
+                outputImg.src = bufferedData;
+                break;
+
+            case bufferedData.startsWith("data:application/pdf"):
+                const pdfViewer = document.getElementById("pdfViewer");
+                const hPdf = document.getElementById("h-pdf");
+                hPdf.style.display = "block";
+                pdfViewer.src = bufferedData;
+                pdfViewer.style.display = "block";
+                break;
+        }
+
+        bufferedData = ""; // รีเซ็ต buffer
+        return;
+    }
+
+    // 📌 เจอ `|EOM` → แสดงผลข้อความ `data:msg`
+    if (bufferedData.includes("|EOM")) {
+        const textData = bufferedData.replace("|EOM", "").trim();
+        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${textData}</p>`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+        bufferedData = ""; // รีเซ็ต buffer
+        return;
+    }
 });
+
 
 
 
