@@ -22,9 +22,9 @@ const addCRC = (chunk) => {
 
 // Helper function to check CRC
 const checkCRC = (data) => {
-    if (data.length < 5) return false;
-    const message = data.slice(0, -5);
-    const receivedCRC = data.slice(-5, -1);
+    if (data.length < 4) return false;
+    const message = data.slice(0, -4);
+    const receivedCRC = data.slice(-4);
     const calculatedCRC = crc.crc16ccitt(message).toString(16).padStart(4, "0");
     return receivedCRC === calculatedCRC;
 };
@@ -46,20 +46,20 @@ io.on("connection", (socket) => {
 
     // Open serial port
     socket.on("open_port", ({ portName, baudRate }) => {
+        socket.emit("port_opened", { portName });
         if (activePorts[portName]) {
             console.log(`${portName} is already open.`);
-            socket.emit("port_opened", { portName });
             return;
         }
-
+        // dataBits: 8,
+        // stopBits: 2,
+        // parity: "none",
+        // rtscts: true,
         try {
             const serialPort = new SerialPort({
                 path: portName,
                 baudRate: parseInt(baudRate),
-                dataBits: 8,
-                stopBits: 2,
-                parity: "none",
-                rtscts: true,
+  
             });
 
             const parser = serialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
@@ -68,18 +68,25 @@ io.on("connection", (socket) => {
             parser.on("data", (data) => {
                 console.log(`Received from ${portName}: ${data}`);
                 if (checkCRC(data)) {
-                    socket.emit("serial_data", { portName, data: data.slice(0, -5) });
-
+                    socket.emit("serial_data", { portName, data: data.slice(0, -4) });
+                    console.log(`ack success`);
+                    const ackMessage = "ACK";
+                    const ackWithCRC = addCRC(ackMessage)
+                    activePorts[portName].write(`${ackWithCRC}\n`)
                     // Notify the sender if they are waiting for an ACK
                     if (pendingAcks[portName]) {
                         pendingAcks[portName](true);
+                        console.log(`ack success`)
                         delete pendingAcks[portName];
                     }
 
                     socket.emit("ack", { portName });
                 } else {
+                    const nackMessage = "NACK";
+                    const nackWithCRC = addCRC(ackMessage)
+                    activePorts[portName].write(`${nackWithCRC}\n`)
+                    console.log(`ack success`)
                     socket.emit("nack", { portName });
-
                     // Notify sender if waiting for ACK
                     if (pendingAcks[portName]) {
                         pendingAcks[portName](false);
@@ -114,9 +121,8 @@ io.on("connection", (socket) => {
             return;
         }
         console.log(message);
-
         const port = activePorts[portName];
-        const dataBuffer = Buffer.from(message);
+        const dataBuffer = Buffer.from(message,"utf-8");
         let sentBytes = 0;
         const maxRetries = 3;
 
@@ -126,30 +132,48 @@ io.on("connection", (socket) => {
             let ackReceived = false;
             console.log(`whileloop : ${chunkWithCRC}`);
             for (let retries = 0; retries < maxRetries; retries++) {
-                console.log(`retire: ${retries}`)
-                await new Promise((resolve, reject) => {
-                    port.write(chunkWithCRC, (err) => {
-                        console.log(chunkWithCRC);
-                        if (err) {
-                            reject(err);
-                        } else {
-                            console.log(`Sent chunk to ${portName}: ${chunkWithCRC}`);
-                            resolve();
-                        }
+
+                //console.log(`for loop : ${chunkWithCRC}`);
+                try {
+
+                    // if (activePorts[portName]) {
+                    //     activePorts[portName].write(chunkWithCRC);
+                    //     console.log(`Sent to ${portName}: ${chunkWithCRC}`);
+                    //   }else {console.log(`cannot sent because port not active`)}
+                   
+                   await new Promise((resolve, reject) => {
+                        port.write(chunkWithCRC, (err) => {
+                            console.log(`write: ${chunkWithCRC}`);
+                            if (err) {
+                                console.log(err);
+                                reject(err);
+                            } else {
+                                console.log(`Sent chunk to ${portName}: ${chunkWithCRC}`);
+                                resolve();
+                            }
+                        });
+                   });
+            
+                    socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
+            
+                        // รอ ACK พร้อม timeout (3 วินาที)
+                    ackReceived = await new Promise((resolve) => {
+                        pendingAcks[portName] = resolve;
+                        console.log(pendingAcks[portName]);
+                        setTimeout(() => resolve(false), 3000);
                     });
-                });
-
-                socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
-
-                // Wait for ACK
-                ackReceived = await new Promise((resolve) => {
-                    pendingAcks[portName] = resolve;
-                    setTimeout(() => resolve(false), 500);
-                });
-
-                if (ackReceived) break;
-                console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
+            
+                    if (ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
+                    console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
+                } catch (error) {
+                    console.error(`Error sending data: ${error.message}`);
+                    if (retries === maxRetries - 1) {
+                        socket.emit("send_error", { portName, error: "ACK timeout" });
+                        return;
+                    }
+                }
             }
+            
 
             if (!ackReceived) {
                 console.error(`Failed to send chunk after ${maxRetries} retries.`);

@@ -307,7 +307,7 @@
        });
 
        socket.on('send_error', (data) => {
-           alert(`Error sending data: ${data.error}`);
+           console.log(`Error sending data: ${data.error}`);
            const progressContainer = document.querySelector('.progress-container');
            if (progressContainer) {
                progressContainer.remove();
