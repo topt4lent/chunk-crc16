@@ -148,6 +148,8 @@ io.on("connection", (socket) => {
                                 console.log(err);
                                 reject(err);
                             } else {
+                                console.log(`✅ Sent chunk to ${portName}: ${chunkWithCRC}`);
+                                console.log(`⏳ Waiting for ACK...`);
                                 console.log(`Sent chunk to ${portName}: ${chunkWithCRC}`);
                                 resolve();
                             }
@@ -157,11 +159,18 @@ io.on("connection", (socket) => {
                     socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
             
                         // รอ ACK พร้อม timeout (3 วินาที)
-                    ackReceived = await new Promise((resolve) => {
-                        pendingAcks[portName] = resolve;
-                        console.log(pendingAcks[portName]);
-                        setTimeout(() => resolve(false), 3000);
-                    });
+                        ackReceived = await new Promise((resolve) => {
+                            pendingAcks[portName] = resolve;
+                            console.log(`🟢 Set pendingAcks[${portName}]`);
+                        
+                            setTimeout(() => {
+                                if (pendingAcks[portName]) {
+                                    console.warn(`❌ ACK Timeout for ${portName}`);
+                                    resolve(false);
+                                    delete pendingAcks[portName];
+                                }
+                            }, 3000);
+                        });
             
                     if (ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
                     console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
