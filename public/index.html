@@ -352,7 +352,7 @@
         if (selectedPort && message.trim() !== "") {
             //const crc = calculateCRC16(message);
             //const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_data", { portName: selectedPort, message: message });
+            socket.emit("send_data", { portName: selectedPort, message: `data:msg${message}|EOM` });
             document.getElementById("inputMessage").value = "";
         }
     }
@@ -422,19 +422,29 @@ function stopTimer() {
         reader.readAsDataURL(file);
     }
 
-    
+    let bufferedData = ""; // ตัวแปรเก็บข้อมูลทั้งหมดที่รับมา
     socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
-    
-    // เก็บข้อมูลที่ได้รับลงใน buffer
-    bufferedData += data;
+    if (data === "ACK") {
+        outputDiv.innerHTML += `<p>✅ Send success</p>`;
+        // รีเซ็ต bufferedData หลังจากแสดงผล ACK หรือข้อความทั่วไป
+    }
 
+    // เก็บข้อมูลที่ได้รับลงใน buffer
+    if (data.includes('data:msg')){
+        bufferedData += data;
+        if (!bufferedData.includes("|EOM")){
+            console.log("waiting end of message");
+            return;
+    }} 
+    if (data.includes("data:image"||"data:application/pdf")){
+        bufferedData += data;
     // ถ้ายังไม่เจอ "|EOF" ให้รอข้อมูลต่อ
     if (!bufferedData.includes("|EOF")) {
         console.log("⌛ Waiting for more data...");
         return;  // ยังไม่ได้ข้อมูลครบไม่ต้องทำอะไร
-    }
+    }}
 
     // เมื่อเจอ "|EOF" ให้ตัด EOF ออก
     bufferedData = bufferedData.slice(0, -4).trim(); // ตัดข้อมูลหลัง |EOF ออก
@@ -455,19 +465,14 @@ function stopTimer() {
         pdfViewer.style.display = "block";
     } 
     // ถ้าเป็น ACK
-    else if (bufferedData === "ACK") {
-        outputDiv.innerHTML += `<p>✅ Send success</p>`;
-    } 
+    
     // ถ้าเป็นข้อมูลข้อความทั่วไป
     else {
         outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
         outputDiv.scrollTop = outputDiv.scrollHeight;  // เลื่อนหน้าจอลงไปยังข้อความล่าสุด
     }
 
-    // รีเซ็ต bufferedData หลังจากแสดงผล ACK หรือข้อความทั่วไป
-    if (bufferedData === "ACK" || bufferedData !== "") {
-        bufferedData = "";  // รีเซ็ต buffer หลังจากทำงานแล้ว
-    }
+bufferedData ="";
 });
 
 
