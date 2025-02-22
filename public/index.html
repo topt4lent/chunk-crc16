@@ -425,26 +425,26 @@ function stopTimer() {
         const outputDiv = document.getElementById("output");
         const outputImg = document.getElementById("imgout");
 
-        const [receivedData, receivedCRC] = data.split("|");
+       // const [receivedData, receivedCRC] = data.split("|");
 
-        if (!receivedCRC || calculateCRC16(receivedData) !== receivedCRC) {
-            outputDiv.innerHTML += `<p style="color: red;"><strong>Error:</strong> CRC mismatch! Data may be corrupted.</p>`;
-            return;
-        }
+        // if (!receivedCRC || calculateCRC16(receivedData) !== receivedCRC) {
+        //     outputDiv.innerHTML += `<p style="color: red;"><strong>Error:</strong> CRC mismatch! Data may be corrupted.</p>`;
+        //     return;
+        // }
 
-        if (receivedData.startsWith("data:image")) {
+        if (data.startsWith("data:image")) {
             const hImage = document.getElementById("h-image")
             hImage.style.display = "block";
 
             outputImg.src = receivedData;
-        }else if (receivedData.startsWith("data:application/pdf")) {
+        }else if (data.startsWith("data:application/pdf")) {
             const pdfViewer = document.getElementById("pdfViewer");
             const hPdf = document.getElementById("h-pdf")
             hPdf.style.display = "block";
             pdfViewer.src = receivedData;
             pdfViewer.style.display = "block";
        
-        }else { outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${receivedData}</p>`;
+        }else { outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data}</p>`;
         outputDiv.scrollTop = outputDiv.scrollHeight;  }
     });
 
