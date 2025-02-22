@@ -416,51 +416,52 @@ function stopTimer() {
            // const messageWithCRC = `${base64String}|${crc}`;
             if (selectedPort) {
                 console.log('sending file');
-                socket.emit("send_data", { portName: selectedPort, message: `${base64String}\eof` });
+                socket.emit("send_data", { portName: selectedPort, message: `${base64String}|EOF` });
             }
         };
         reader.readAsDataURL(file);
     }
-    let bufferedData = ""; // ตัวแปรเก็บข้อมูลที่รับมา
+    let bufferedData = "";
+    socket.on("serial_data", ({ portName, data }) => {
+        const outputDiv = document.getElementById("output");
+        const outputImg = document.getElementById("imgout");
 
-socket.on("serial_data", ({ portName, data }) => {
-    const outputDiv = document.getElementById("output");
-    const outputImg = document.getElementById("imgout");
-
-    // เช็คว่าได้รับ ACK
-    if (data === "ACK") {
-        outputDiv.innerHTML += `<p>✅ Send success</p>`;
-        return;
-    }
-
-    // เพิ่มข้อมูลเข้า buffer
-    bufferedData += data;
-
-    // ถ้ายังไม่เจอ EOF ให้รอรับต่อไป
-    if (!bufferedData.includes("|EOF")) {
+       const [receivedData, receivedCRC] = data.split("|");
+       bufferedData += receivedData;
+       if (!bufferedData.includes("|EOF")) {
         console.log("⌛ Waiting for more data...");
         return;
     }
-
     // เมื่อเจอ "|EOF" ให้ตัด EOF ออก
     bufferedData = bufferedData.replace("|EOF", "").trim();
 
-    if (bufferedData.startsWith("data:image")) {
-        document.getElementById("h-image").style.display = "block";
-        outputImg.src = bufferedData;
-    } else if (bufferedData.startsWith("data:application/pdf")) {
-        const pdfViewer = document.getElementById("pdfViewer");
-        document.getElementById("h-pdf").style.display = "block";
-        pdfViewer.src = bufferedData;
-        pdfViewer.style.display = "block";
-    } else {
-        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
-        outputDiv.scrollTop = outputDiv.scrollHeight;
-    }
+        // if (!receivedCRC || calculateCRC16(receivedData) !== receivedCRC) {
+        //     outputDiv.innerHTML += `<p style="color: red;"><strong>Error:</strong> CRC mismatch! Data may be corrupted.</p>`;
+        //     return;
+        // }
 
-    // ล้าง buffer เมื่อแสดงข้อมูลเสร็จ
-    bufferedData = "";
-});
+        if (bufferedData.startsWith("data:image")) {
+            const hImage = document.getElementById("h-image")
+            hImage.style.display = "block";
+
+            outputImg.src = bufferedData;
+        }else if (bufferedData.startsWith("data:application/pdf")) {
+            const pdfViewer = document.getElementById("pdfViewer");
+            const hPdf = document.getElementById("h-pdf")
+            hPdf.style.display = "block";
+            pdfViewer.src = bufferedData;
+            pdfViewer.style.display = "block";
+        }else if (bufferedData ==="ACK"){outputDiv.innerHTML +=`<p>✅send success</p>`
+        }else { outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${bufferedData}</p>`;
+        outputDiv.scrollTop = outputDiv.scrollHeight;  }
+    });
+
+    document.getElementById("inputMessage").addEventListener("keypress", function (event) {
+    if (event.key === "Enter") {
+        event.preventDefault();  // ป้องกันการขึ้นบรรทัดใหม่
+        sendMessage();           // เรียกใช้ฟังก์ชันส่งข้อความ
+    }
+    });
 
     function cancelUpload(){
         if (selectedPort){
