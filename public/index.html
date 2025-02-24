@@ -228,6 +228,10 @@
                <input type="text" id="inputMessage" placeholder="Type message...">
                <button class="send-btn" onclick="sendMessage()">Send Message</button>
            </div>
+           <div class="input-group send-box">
+            <input type="text" id="inputGeo" placeholder="Type message...">
+            <button class="send-btn" onclick="sendGeo()">Send Geo</button>
+        </div>
 
            <div class="upload-section">
                <input type="file" id="imageInput" accept="image/*">
@@ -356,6 +360,17 @@
             //const messageWithCRC = `${message}|${crc}`;
             socket.emit("send_data", { portName: selectedPort, message: `data:msg${message}` });
             document.getElementById("inputMessage").value = "";
+        }
+    }
+
+
+    function sendGeo() {
+        const message = document.getElementById("inputGeo").value;
+        if (selectedPort && message.trim() !== "") {
+            //const crc = calculateCRC16(message);
+            //const messageWithCRC = `${message}|${crc}`;
+            socket.emit("send_geo", { portName: selectedPort, message: `${message}` });
+            document.getElementById("inputGeo").value = "";
         }
     }
 

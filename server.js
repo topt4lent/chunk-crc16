@@ -4,7 +4,8 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const { ReadlineParser } = require("@serialport/parser-readline");
 const crc = require("crc");
-
+const mgrs = require('mgrs');
+const geohash = require('ngeohash');
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
@@ -59,6 +60,10 @@ io.on("connection", (socket) => {
             const serialPort = new SerialPort({
                 path: portName,
                 baudRate: parseInt(baudRate),
+                dataBits: 8,
+                stopBits: 2,
+                parity: "none",
+                rtscts: true,
   
             });
 
@@ -77,8 +82,13 @@ io.on("connection", (socket) => {
                     }
                     return;
                 }
-
-                if (checkCRC(data)) {
+                if (data.includes('|geo')){
+                    const dataGeo = data.slice(0, -4);
+                    console.log(`dataGeo:${dataGeo}`)
+                    const decodeGeo = geohash.decode(decodeGeo);
+                    console.log(`dataGeo:${decodeGeo}`);
+                    socket.emit("serial_data", { portName, data: decodeGeo });
+                }else if (checkCRC(data)) {
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
                     console.log("✅ Data CRC check passed");
                     const ackMessage = "ACK";
@@ -128,20 +138,26 @@ io.on("connection", (socket) => {
         }
     });
 
+    isUploading = {};
     // Send data with CRC and wait for ACK
-    socket.on("send_data", async ({ portName, message, chunkSize = 128 }) => {
+    socket.on("send_geo", async ({ portName, message, chunkSize = 96 }) => {
         if (!activePorts[portName]) {
             socket.emit("send_error", { portName, error: "Port not open" });
             return;
         }
-        console.log(message);
+        try {
+        
+        const latLong = mgrs.toPoint(message);
+        const geohashValue = geohash.encode(latLong[0], latLong[1]);
+        console.log(geohashValue);
         const port = activePorts[portName];
         const dataBuffer = Buffer.from(message,"utf-8");
         let sentBytes = 0;
         const totalLength = dataBuffer.length;
         const maxRetries = 3;
+        isUploading[portName] = true;
 
-        while (sentBytes < totalLength) {
+        while (sentBytes < totalLength &&  isUploading[portName]) {
             
             const progress = Math.floor((sentBytes / totalLength) * 100);
             socket.emit("send_progress", { portName, progress, sent: sentBytes, total: totalLength });
@@ -149,7 +165,104 @@ io.on("connection", (socket) => {
             const chunk = dataBuffer.slice(sentBytes, sentBytes + chunkSize).toString();
             const chunkWithCRC = addCRC(chunk);
             let ackReceived = false;
-            for (let retries = 0; retries < maxRetries; retries++) {
+            let retires = 0
+            for ( retries = 0; retries < maxRetries; retries++) {
+                try {
+
+                    // if (activePorts[portName]) {
+                    //     activePorts[portName].write(chunkWithCRC);
+                    //     console.log(`Sent to ${portName}: ${chunkWithCRC}`);
+                    //   }else {console.log(`cannot sent because port not active`)}
+                   await new Promise((resolve, reject) => {
+                        port.write(`${geohashValue}|geo\n`, (err) => {
+                            console.log(`Try ${retries}`);
+                            if (err) {
+                                console.log(err);
+                                reject(err);
+                            } else {
+                                console.log(`✅ Sent chunk to ${portName}: ${geohashValue}`);
+                                console.log(`⏳ Waiting for ACK...`);
+                                resolve();
+                            }
+                        });
+                   });
+            
+                    socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
+            
+                        // รอ ACK พร้อม timeout (5 วินาที)
+                        ackReceived = new Promise((resolve) => {
+                            pendingAcks[portName] = resolve;
+                            console.log(`🟢 Set pendingAcks[${portName}]`);
+                        
+                            setTimeout(() => {
+                                if (pendingAcks[portName]) {
+                                    console.warn(`❌ ACK Timeout for ${portName}`); 
+                                    delete pendingAcks[portName];
+                                    resolve(false);
+                                }
+                            }, 2000);
+                        });
+            
+                    if (await ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
+                    console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
+                    
+                } catch (error) {
+                    console.error(`Error sending data: ${error.message}`);
+                    if (retries === maxRetries - 1) {
+                        socket.emit("send_error", { portName, error: "ACK timeout" });
+                        return;
+                    }
+                }
+            }  if (retries === maxRetries) {
+                retires = 0;
+                socket.emit("send_error", { portName, error: "ACK timeout" });
+                console.warn('❌ Stoped send ACK no response! ')
+            }
+
+            if (!ackReceived) {
+                console.error(`Failed to send chunk after ${maxRetries} retries.`);
+                socket.emit("send_error", { portName, error: "ACK timeout" });
+                return;
+            }
+
+            sentBytes += chunk.length;
+        }
+    } catch (error) {
+        console.error(`Error sending to ${portName}:`, error);
+        socket.emit("send_error", { portName, error: error.message });
+    } finally {
+        isUploading[portName] = false; // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
+    }
+
+        // socket.emit("send_error", { portName, totalSent: sentBytes });
+        // console.log(`Completed sending to ${portName}`);
+    });
+
+
+    socket.on("send_data", async ({ portName, message, chunkSize = 96 }) => {
+        if (!activePorts[portName]) {
+            socket.emit("send_error", { portName, error: "Port not open" });
+            return;
+        }
+        try {
+        console.log(message);
+        const port = activePorts[portName];
+        const dataBuffer = Buffer.from(message,"utf-8");
+        let sentBytes = 0;
+        const totalLength = dataBuffer.length;
+        const maxRetries = 3;
+        isUploading[portName] = true;
+
+        while (sentBytes < totalLength &&  isUploading[portName]) {
+            
+            const progress = Math.floor((sentBytes / totalLength) * 100);
+            socket.emit("send_progress", { portName, progress, sent: sentBytes, total: totalLength });
+
+            const chunk = dataBuffer.slice(sentBytes, sentBytes + chunkSize).toString();
+            const chunkWithCRC = addCRC(chunk);
+            let ackReceived = false;
+            let retires = 0
+            for ( retries = 0; retries < maxRetries; retries++) {
 
                 //console.log(`for loop : ${chunkWithCRC}`);
                 try {
@@ -182,15 +295,16 @@ io.on("connection", (socket) => {
                         
                             setTimeout(() => {
                                 if (pendingAcks[portName]) {
-                                    console.warn(`❌ ACK Timeout for ${portName}`);
-                                    resolve(false);
+                                    console.warn(`❌ ACK Timeout for ${portName}`); 
                                     delete pendingAcks[portName];
+                                    resolve(false);
                                 }
-                            }, 3000);
+                            }, 2000);
                         });
             
                     if (await ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
                     console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
+                    
                 } catch (error) {
                     console.error(`Error sending data: ${error.message}`);
                     if (retries === maxRetries - 1) {
@@ -198,8 +312,11 @@ io.on("connection", (socket) => {
                         return;
                     }
                 }
+            }  if (retries === maxRetries) {
+                retires = 0;
+                socket.emit("send_error", { portName, error: "ACK timeout" });
+                console.warn('❌ Stoped send ACK no response! ')
             }
-            
 
             if (!ackReceived) {
                 console.error(`Failed to send chunk after ${maxRetries} retries.`);
@@ -209,10 +326,14 @@ io.on("connection", (socket) => {
 
             sentBytes += chunk.length;
         }
+    } catch (error) {
+        console.error(`Error sending to ${portName}:`, error);
+        socket.emit("send_error", { portName, error: error.message });
+    } finally {
+        isUploading[portName] = false; // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
+    }
 
-        socket.emit("send_error", { portName, totalSent: sentBytes });
-        console.log(`Erro sending to ${portName} MAX Rretire`);
-    });
+});
 
     // Close serial port
     socket.on("close_port", (portName) => {
@@ -223,6 +344,24 @@ io.on("connection", (socket) => {
             });
         }
     });
+
+        // 📌 ฟังก์ชันสำหรับยกเลิกการส่งข้อมูล
+        socket.on("cancel_upload", ({ portName }) => {
+      
+            if (!portName) {
+                console.error("portName is missing in cancel_upload event");
+                return;
+            }
+        
+            if (isUploading[portName]) {
+                isUploading[portName] = false; // หยุดการอัปโหลด
+                socket.emit("send_canceled", { portName });
+                console.log(`Upload to ${portName} was canceled by client.`);
+            } else {
+                console.warn(`No ongoing upload found for ${portName}`);
+            }
+        });
+        
 
     socket.on("disconnect", () => {
         console.log("WebSocket disconnected");
