@@ -175,7 +175,7 @@ io.on("connection", (socket) => {
             
                     socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
             
-                        // รอ ACK พร้อม timeout (3 วินาที)
+                        // รอ ACK พร้อม timeout (5 วินาที)
                         ackReceived = new Promise((resolve) => {
                             pendingAcks[portName] = resolve;
                             console.log(`🟢 Set pendingAcks[${portName}]`);
@@ -186,10 +186,10 @@ io.on("connection", (socket) => {
                                     resolve(false);
                                     delete pendingAcks[portName];
                                 }
-                            }, 5000);
+                            }, 3000);
                         });
             
-                    if (ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
+                    if (await ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
                     console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
                 } catch (error) {
                     console.error(`Error sending data: ${error.message}`);
@@ -210,8 +210,8 @@ io.on("connection", (socket) => {
             sentBytes += chunk.length;
         }
 
-        socket.emit("send_complete", { portName, totalSent: sentBytes });
-        console.log(`Completed sending to ${portName}`);
+        socket.emit("send_error", { portName, totalSent: sentBytes });
+        console.log(`Erro sending to ${portName} MAX Rretire`);
     });
 
     // Close serial port
