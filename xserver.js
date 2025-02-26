@@ -108,7 +108,7 @@ io.on("connection", (socket) => {
                     console.log(`dataGeo: ${dataGeo}`)
                     const decodeGeo = geohash.decode(dataGeo);
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
-                    const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
+                    const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.longitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
                     
                    // socket.emit("ack", { portName });
@@ -168,7 +168,7 @@ io.on("connection", (socket) => {
                 if (latLong) {
                     console.log("Converted MGRS to Lat/Lon:", latLong);
                 }
-                const geohashValue = geohash.encode(latLong[0], latLong[1]);
+                const geohashValue = geohash.encode(latLong[1], latLong[0]);
                 console.log(geohashValue);
                 const port = activePorts[portName];
                 const maxRetries = 3;
