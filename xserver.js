@@ -89,9 +89,10 @@ io.on("connection", (socket) => {
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
                     const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
-                    sendAck();
+                    //sendAck();
                     socket.emit("serial_data", { portName, data: dataMgrs });
-                }else if (checkCRC(data)) {
+                }else {
+                    checkCRC(data)
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
                     console.log("✅ Data CRC check passed");
                     const ackMessage = "ACK";
@@ -101,8 +102,7 @@ io.on("connection", (socket) => {
                             console.log("🔵 Send ACK...");
                             //ตอบ ACK ไป websocket
                             socket.emit("ack", { portName });
-                        }  
-                } else {
+                        }else {
                     const nackMessage = "NACK";
                     const nackWithCRC = addCRC(nackMessage)
                     if (!data.includes("NACK")) {
@@ -111,7 +111,7 @@ io.on("connection", (socket) => {
                     console.log("❌ CRC failed, sending NACK");
                     socket.emit("nack", { portName });
                 }
-            });
+            }});
 
             serialPort.on("error", (err) => {
                 console.error(`Error on ${portName}:`, err.message);
