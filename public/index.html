@@ -450,6 +450,14 @@ function stopTimer() {
     outputDiv.scrollTop = outputDiv.scrollHeight;
     return;
     })
+
+    socket.on("received_ack",()=>{
+    const outputAck = document.getElementById("output-ack");
+    outputAck.innerHTML += `<p>✅ Send success</p>`;
+    //     outputAck.scrollTop = outputAck.scrollHeight;
+    //     return;
+    return;
+    })
     // // ✅ ถ้าเป็น ACK → แสดงผลทันที
     // if (data.includes("ACK")) {
     //     outputAck.innerHTML += `<p>✅ Send success</p>`;

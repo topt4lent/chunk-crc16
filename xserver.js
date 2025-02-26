@@ -75,6 +75,7 @@ io.on("connection", (socket) => {
                 //ถ้าเป็น ACK ไม่ต้อง ตอบ
                 if (data.trim() === "ACK") {
                     console.log("✅ Received ACK!");
+                    socket.emit("received_ack",{});
                     if (pendingAck[portName]) {
                         console.log("🔵 Resolving pending ACK...");
                         pendingAck[portName](true);
@@ -198,13 +199,13 @@ io.on("connection", (socket) => {
 
                         // รอ ACK พร้อม timeout (5 วินาที)
                          ackReceived = new  Promise((resolve) => {
-                            pendingAcks[portName] = resolve;
+                            pendingAck[portName] = resolve;
                             console.log(`🟢 Set pendingAcks[${portName}]`);
                         
                             setTimeout(() => {
-                                if (pendingAcks[portName]) {
+                                if (pendingAck[portName]) {
                                     console.warn(`❌ ACK Timeout for ${portName}`); 
-                                    delete pendingAcks[portName];
+                                    delete pendingAck[portName];
                                     resolve(false);
                                 }
                             }, 3000);
@@ -220,7 +221,7 @@ io.on("connection", (socket) => {
                     }
                 }
             }  if (retries === maxRetries) {
-                retires = 0;
+                retries = 0;
                 socket.emit("send_error", { portName, error: "ACK timeout" });
                 console.warn('❌ Stoped send ACK no response! ')
             }
@@ -235,7 +236,7 @@ io.on("connection", (socket) => {
         console.error(`Error sending to ${portName}:`, error);
         socket.emit("send_error", { portName, error: error.message });
     } finally {
-        delete pendingAcks[portName];; // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
+        delete pendingAck[portName];; // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
     }
 
         // socket.emit("send_error", { portName, totalSent: sentBytes });
