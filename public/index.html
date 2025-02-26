@@ -358,7 +358,7 @@
         if (selectedPort && message.trim() !== "") {
             //const crc = calculateCRC16(message);
             //const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_data", { portName: selectedPort, message: `${message}` });
+            socket.emit("send_msg", { portName: selectedPort, message: `${message}` });
             document.getElementById("inputMessage").value = "";
         }
     }
@@ -437,7 +437,51 @@ function stopTimer() {
         reader.readAsDataURL(file);
     }
 
-    let bufferedData = ""; // ใช้เก็บข้อมูล chunk ที่เข้ามา
+    socket.on("serial_geoData", ({ portName, data }) => {
+    const outputDiv = document.getElementById("output");
+    outputDiv.innerHTML += `<p><strong>MGRS From ${portName} :</strong> ${data}</p>`;
+    outputDiv.scrollTop = outputDiv.scrollHeight;
+    return;
+    })
+
+    socket.on("serial_msgData", ({ portName, data }) => {
+    const outputDiv = document.getElementById("output");
+    outputDiv.innerHTML += `<p><strong>Message From ${portName}:</strong> ${data}</p>`;
+    outputDiv.scrollTop = outputDiv.scrollHeight;
+    return;
+    })
+    // // ✅ ถ้าเป็น ACK → แสดงผลทันที
+    // if (data.includes("ACK")) {
+    //     outputAck.innerHTML += `<p>✅ Send success</p>`;
+    //     outputAck.scrollTop = outputAck.scrollHeight;
+    //     return;
+    // }else if (data.includes("NACK")){
+    //     outputAck.innerHTML += `<p>❌Error response is NACK </p>`;
+    //     outputAck.scrollTop = outputAck.scrollHeight;
+    //     return;
+    // }
+
+    // ✅ ถ้าเป็นข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
+    // if (!data.startsWith("data")) {
+    //     outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data}</p>`;
+    //     outputDiv.scrollTop = outputDiv.scrollHeight;
+    //     return;
+    // }
+
+    // ✅ ถ้าเป็น `data:image`, `data:application/pdf`, หรือ `data:msg` → เก็บ chunk ลง buffer
+    // bufferedData += data;
+
+    // 📌 เมื่อเจอ `|EOF` → ไฟล์รูปภาพหรือ PDF ครบถ้วนแล้ว แสดงผล
+ 
+
+    // 📌 เมื่อเจอ `|EOM` → ข้อความ `data:msg` ครบถ้วนแล้ว แสดงผล
+    // if (bufferedData.includes("|EOM")) {
+    //     const textData = bufferedData.replace("data:msg", "").replace("|EOM", "").trim(); // ลบ `data:msg` และ `|EOM`
+    //     outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${textData}</p>`;
+    //     outputDiv.scrollTop = outputDiv.scrollHeight;
+    //     bufferedData = ""; // รีเซ็ต buffer
+    //     return;
+
 
 socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
