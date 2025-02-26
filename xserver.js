@@ -101,23 +101,24 @@ io.on("connection", (socket) => {
                     activePorts[portName].write("NACK\n")
                     return
                 }
-
                 if (data.includes('geo|')){
+                    activePorts[portName].write(`ACK\n`)
                     const dataGeo = data.slice(4,-4);
                     console.log(`dataGeo: ${dataGeo}`)
                     const decodeGeo = geohash.decode(dataGeo);
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
                     const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
-                    activePorts[portName].write(`ACK\n`)
+                    
                    // socket.emit("ack", { portName });
                     socket.emit("serial_geoData", { portName, data: dataMgrs });
                     return
                 }
                 if (data.includes('msg|')){
+                    activePorts[portName].write(`ACK\n`)
                     const dataMsg = data.slice(4,-4);
                     console.log(`Msg: ${dataMsg}`);
-                    activePorts[portName].write(`ACK\n`)
+                   
                  //   socket.emit("ack", { portName });
                     socket.emit("serial_msgData", { portName, data: dataMsg });
                     return
