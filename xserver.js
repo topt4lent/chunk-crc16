@@ -85,7 +85,7 @@ io.on("connection", (socket) => {
                 if (data.includes('|geo')){
                     const dataGeo = data.slice(0, -4);
                     console.log(`dataGeo:${dataGeo}`)
-                    const decodeGeo = geohash.decode(decodeGeo);
+                    const decodeGeo = geohash.decode(dataGeo);
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
                     const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
@@ -146,7 +146,7 @@ io.on("connection", (socket) => {
                     console.error("MGRS conversion failed:", error.message);
                     return; // หรือส่งค่า default เช่น null หรือค่าพิกัดเริ่มต้น
                 }
-                
+
                 // ใช้งาน latLong ต่อไปถ้าการแปลงสำเร็จ
                 if (latLong) {
                     console.log("Converted MGRS to Lat/Lon:", latLong);
@@ -221,7 +221,7 @@ io.on("connection", (socket) => {
             }
 
             if (!ackReceived) {
-                console.error(`Failed to send chunk after ${maxRetries} retries.`);
+                console.error(`❌ Failed to send chunk after ${maxRetries} retries.`);
                 socket.emit("send_error", { portName, error: "ACK timeout" });
                 return;
             }

@@ -457,7 +457,7 @@ socket.on("serial_data", ({ portName, data }) => {
 
     // ✅ ถ้าเป็นข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
     if (!data.startsWith("data")) {
-        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data.slice(8)}</p>`;
+        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data.slice(4)}</p>`;
         outputDiv.scrollTop = outputDiv.scrollHeight;
         return;
     }
