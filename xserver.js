@@ -108,7 +108,7 @@ io.on("connection", (socket) => {
                     console.log(`dataGeo: ${dataGeo}`)
                     const decodeGeo = geohash.decode(dataGeo);
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
-                    const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.longitude]); 
+                    const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
                     
                    // socket.emit("ack", { portName });
