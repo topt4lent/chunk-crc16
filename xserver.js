@@ -373,7 +373,7 @@ io.on("connection", (socket) => {
                 //             }
                 //         });
                 //    });
-                   port.write(chunkWithCRC);
+                   port.write(`${chunkWithCRC}\n`);
                    console.log(chunkWithCRC);
                    const progress = Math.floor((sentBytes / totalLength) * 100);
                     socket.emit("send_progress", { portName,progress, sent: sentBytes, total: dataBuffer.length });
