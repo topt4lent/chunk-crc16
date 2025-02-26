@@ -125,7 +125,7 @@ io.on("connection", (socket) => {
                     return
                 }
                 else {
-                    activePorts[portName].write(`ACK\n`)
+                    activePorts[portName].write(`ACK+\n`)
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
                     console.log("✅ Data CRC check passed");
                     return
