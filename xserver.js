@@ -170,7 +170,7 @@ io.on("connection", (socket) => {
                 console.log(geohashValue);
                 const port = activePorts[portName];
                 const maxRetries = 3;
-                const geoWithCRC = addCRC(`geo|${geoWithCRC}`);
+                const geoWithCRC = addCRC(`geo|${geohashValue}`);
                 let retries;
                 for ( retries = 0; retries < maxRetries; retries++) {
                 try {
@@ -252,7 +252,7 @@ io.on("connection", (socket) => {
                 console.log(message);
                 const port = activePorts[portName];
                 const maxRetries = 3;
-                const msgWithCRC = addCRC(`msg|${msgWithCRC}`);
+                const msgWithCRC = addCRC(`msg|${message}`);
                 let retries;
                 for ( retries = 0; retries < maxRetries; retries++) {
                 try {
