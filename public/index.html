@@ -454,7 +454,7 @@ function stopTimer() {
     socket.on("received_ack",()=>{
     const outputAck = document.getElementById("output-ack");
     outputAck.innerHTML += `<p>✅ Send success</p>`;
-    //     outputAck.scrollTop = outputAck.scrollHeight;
+    outputAck.scrollTop = outputAck.scrollHeight;
     //     return;
     return;
     })
@@ -490,32 +490,13 @@ function stopTimer() {
     //     bufferedData = ""; // รีเซ็ต buffer
     //     return;
 
-
+let bufferedData;
 socket.on("serial_data", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     const outputImg = document.getElementById("imgout");
     const outputAck = document.getElementById("output-ack");
-
-    // ✅ ถ้าเป็น ACK → แสดงผลทันที
-    if (data.includes("ACK")) {
-        outputAck.innerHTML += `<p>✅ Send success</p>`;
-        outputAck.scrollTop = outputAck.scrollHeight;
-        return;
-    }else if (data.includes("NACK")){
-        outputAck.innerHTML += `<p>❌Error response is NACK </p>`;
-        outputAck.scrollTop = outputAck.scrollHeight;
-        return;
-    }
-
-    // ✅ ถ้าเป็นข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
-    if (!data.startsWith("data")) {
-        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data}</p>`;
-        outputDiv.scrollTop = outputDiv.scrollHeight;
-        return;
-    }
-
-    // ✅ ถ้าเป็น `data:image`, `data:application/pdf`, หรือ `data:msg` → เก็บ chunk ลง buffer
-    bufferedData += data;
+    let sliceData = data.slice(0,-4);
+    bufferedData += sliceData;
 
     // 📌 เมื่อเจอ `|EOF` → ไฟล์รูปภาพหรือ PDF ครบถ้วนแล้ว แสดงผล
     if (bufferedData.includes("|EOF")) {
