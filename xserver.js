@@ -72,7 +72,7 @@ io.on("connection", (socket) => {
             // Listen for incoming data
             parser.on("data", (data) => {
                 console.log(`Received from ${portName}: ${data}`);
-
+                //ถ้าเป็น ACK ไม่ต้อง ตอบ
                 if (data.trim() === "ACK") {
                     console.log("✅ Received ACK!");
                     if (pendingAcks[portName]) {
@@ -86,36 +86,30 @@ io.on("connection", (socket) => {
                     const dataGeo = data.slice(0, -4);
                     console.log(`dataGeo:${dataGeo}`)
                     const decodeGeo = geohash.decode(decodeGeo);
-                    console.log(`dataGeo:${decodeGeo}`);
-                    socket.emit("serial_data", { portName, data: decodeGeo });
+                    console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
+                    const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
+                    console.log(`toMgrs :${dataMgrs}`);
+                    sendAck();
+                    socket.emit("serial_data", { portName, data: dataMgrs });
                 }else if (checkCRC(data)) {
                     socket.emit("serial_data", { portName, data: data.slice(0, -4) });
                     console.log("✅ Data CRC check passed");
                     const ackMessage = "ACK";
                     const ackWithCRC = addCRC(ackMessage)
-                    if (!data.includes("ACK")) {
-                    activePorts[portName].write(`${ackWithCRC}\n`)
-                    }
-                    // Notify the sender if they are waiting for an ACK
-                    if (pendingAcks[portName]) {
-                        console.log("🔵 Resolving pending ACK...");
-                        pendingAcks[portName](true);
-                        delete pendingAcks[portName];
-                    }
-
-                    socket.emit("ack", { portName });
+                        if (!data.includes("ACK")) {
+                            activePorts[portName].write(`${ackWithCRC}\n`)
+                            console.log("🔵 Send ACK...");
+                            //ตอบ ACK ไป websocket
+                            socket.emit("ack", { portName });
+                        }  
                 } else {
                     const nackMessage = "NACK";
                     const nackWithCRC = addCRC(nackMessage)
                     if (!data.includes("NACK")) {
+                    //ตอบ NACK
                     activePorts[portName].write(`${nackWithCRC}\n`)}
                     console.log("❌ CRC failed, sending NACK");
                     socket.emit("nack", { portName });
-                    // Notify sender if waiting for ACK
-                    if (pendingAcks[portName]) {
-                        pendingAcks[portName](false);
-                        delete pendingAcks[portName];
-                    }
                 }
             });
 
@@ -139,14 +133,12 @@ io.on("connection", (socket) => {
     });
 
     isUploading = {};
-    // Send data with CRC and wait for ACK
     socket.on("send_geo", async ({ portName, message, chunkSize = 96 }) => {
         if (!activePorts[portName]) {
             socket.emit("send_error", { portName, error: "Port not open" });
             return;
         }
         try {
-        
         const latLong = mgrs.toPoint(message);
         const geohashValue = geohash.encode(latLong[0], latLong[1]);
         console.log(geohashValue);
@@ -161,7 +153,6 @@ io.on("connection", (socket) => {
             
             const progress = Math.floor((sentBytes / totalLength) * 100);
             socket.emit("send_progress", { portName, progress, sent: sentBytes, total: totalLength });
-
             const chunk = dataBuffer.slice(sentBytes, sentBytes + chunkSize).toString();
             const chunkWithCRC = addCRC(chunk);
             let ackReceived = false;
@@ -188,7 +179,6 @@ io.on("connection", (socket) => {
                    });
             
                     socket.emit("send_progress", { portName, sent: sentBytes, total: dataBuffer.length });
-            
                         // รอ ACK พร้อม timeout (5 วินาที)
                         ackReceived = new Promise((resolve) => {
                             pendingAcks[portName] = resolve;
@@ -362,10 +352,19 @@ io.on("connection", (socket) => {
             }
         });
         
+    
 
     socket.on("disconnect", () => {
         console.log("WebSocket disconnected");
     });
+
+    function sendAck(){
+        const ackMessage = "ACK";
+        const ackWithCRC = addCRC(ackMessage)
+        if (!data.includes("ACK")) {
+        activePorts[portName].write(`${ackWithCRC}\n`)
+        }
+    }
 });
 
 // Start server

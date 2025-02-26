@@ -358,18 +358,16 @@
         if (selectedPort && message.trim() !== "") {
             //const crc = calculateCRC16(message);
             //const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_data", { portName: selectedPort, message: `data:msg${message}` });
+            socket.emit("send_data", { portName: selectedPort, message: `${message}` });
             document.getElementById("inputMessage").value = "";
         }
     }
 
 
     function sendGeo() {
-        const message = document.getElementById("inputGeo").value;
+        const geo = document.getElementById("inputGeo").value;
         if (selectedPort && message.trim() !== "") {
-            //const crc = calculateCRC16(message);
-            //const messageWithCRC = `${message}|${crc}`;
-            socket.emit("send_geo", { portName: selectedPort, message: `${message}` });
+            socket.emit("send_geo", { portName: selectedPort, message: `${geo}` });
             document.getElementById("inputGeo").value = "";
         }
     }
@@ -447,7 +445,7 @@ socket.on("serial_data", ({ portName, data }) => {
     const outputAck = document.getElementById("output-ack");
 
     // ✅ ถ้าเป็น ACK → แสดงผลทันที
-    if (data === ("ACK")) {
+    if (data.includes("ACK")) {
         outputAck.innerHTML += `<p>✅ Send success</p>`;
         outputAck.scrollTop = outputAck.scrollHeight;
         return;
@@ -458,7 +456,7 @@ socket.on("serial_data", ({ portName, data }) => {
     }
 
     // ✅ ถ้าเป็นข้อความทั่วไป (ไม่มี `data:`) → แสดงผลทันที
-    if (data.startsWith("data:msg")) {
+    if (!data.startsWith("data")) {
         outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${data.slice(8)}</p>`;
         outputDiv.scrollTop = outputDiv.scrollHeight;
         return;
@@ -490,13 +488,13 @@ socket.on("serial_data", ({ portName, data }) => {
     }
 
     // 📌 เมื่อเจอ `|EOM` → ข้อความ `data:msg` ครบถ้วนแล้ว แสดงผล
-    if (bufferedData.includes("|EOM")) {
-        const textData = bufferedData.replace("data:msg", "").replace("|EOM", "").trim(); // ลบ `data:msg` และ `|EOM`
-        outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${textData}</p>`;
-        outputDiv.scrollTop = outputDiv.scrollHeight;
-        bufferedData = ""; // รีเซ็ต buffer
-        return;
-    }
+    // if (bufferedData.includes("|EOM")) {
+    //     const textData = bufferedData.replace("data:msg", "").replace("|EOM", "").trim(); // ลบ `data:msg` และ `|EOM`
+    //     outputDiv.innerHTML += `<p><strong>${portName}:</strong> ${textData}</p>`;
+    //     outputDiv.scrollTop = outputDiv.scrollHeight;
+    //     bufferedData = ""; // รีเซ็ต buffer
+    //     return;
+    // }
 });
 
 
