@@ -65,10 +65,7 @@ io.on("connection", (socket) => {
             const serialPort = new SerialPort({
                 path: portName,
                 baudRate: parseInt(baudRate),
-                dataBits: 8,
-                stopBits: 2,
-                parity: "none",
-                rtscts: true,
+          
   
             });
 
@@ -99,6 +96,7 @@ io.on("connection", (socket) => {
                     return
                 }
                 let chk = checkCRC(data);
+                console.log(`crc: ${chk}`);
                 if (!chk){
                     activePorts[portName].write("NACK\n")
                     return
@@ -260,7 +258,7 @@ io.on("connection", (socket) => {
                 try {
                     //ส่งออกไหม
 
-                    port.write(`geo|${msgWithCRC}\n`);
+                    port.write(`msg|${msgWithCRC}\n`);
                    // socket.emit("serial_geoData", { portName, data: `msg|${msgWithCRC}\n` });
                     //ทดสอบ
                     console.log(`✅ Sending message to ${portName}: ${msgWithCRC}`);
