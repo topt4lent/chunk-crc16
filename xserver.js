@@ -89,7 +89,7 @@ io.on("connection", (socket) => {
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
                     const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
-                    //sendAck();
+                    sendAck();
                     socket.emit("serial_data", { portName, data: dataMgrs });
                 }else {
                     checkCRC(data)
@@ -263,7 +263,7 @@ io.on("connection", (socket) => {
             const chunkWithCRC = addCRC(chunk);
             let ackReceived = false;
             let retires = 0
-            for ( retries = 0; retries < maxRetries; retries++) {
+            for ( retries = 0; retries < maxRetries && !ackReceived; retries++) {
 
                 //console.log(`for loop : ${chunkWithCRC}`);
                 try {
@@ -302,7 +302,6 @@ io.on("connection", (socket) => {
                                 }
                             }, 2000);
                         });
-            
                     if (await ackReceived) break; // ถ้าได้รับ ACK ให้ออกจาก loop
                     console.warn(`Retry ${retries + 1}/${maxRetries} for ${portName}`);
                     
