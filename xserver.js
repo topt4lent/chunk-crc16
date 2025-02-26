@@ -89,7 +89,9 @@ io.on("connection", (socket) => {
                     console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
                     const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
                     console.log(`toMgrs :${dataMgrs}`);
-                    sendAck();
+                    const ackMessage = "ACK";
+                    const ackWithCRC = addCRC(ackMessage);
+                    activePorts[portName].write(`${ackWithCRC}\n`)
                     socket.emit("serial_data", { portName, data: dataMgrs });
                 }else {
                     checkCRC(data)
@@ -371,9 +373,6 @@ io.on("connection", (socket) => {
     function sendAck(){
         const ackMessage = "ACK";
         const ackWithCRC = addCRC(ackMessage)
-        if (!data.includes("ACK")) {
-        activePorts[portName].write(`${ackWithCRC}\n`)
-        }
     }
 });
 
