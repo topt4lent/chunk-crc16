@@ -170,13 +170,13 @@ io.on("connection", (socket) => {
                 console.log(geohashValue);
                 const port = activePorts[portName];
                 const maxRetries = 3;
-                const geoWithCRC = addCRC(geohashValue);
+                const geoWithCRC = addCRC(`geo|${geoWithCRC}`);
                 let retries;
                 for ( retries = 0; retries < maxRetries; retries++) {
                 try {
                     //ส่งออกไหม
 
-                    port.write(`geo|${geoWithCRC}\n`);
+                    port.write(`${geoWithCRC}\n`);
                    // socket.emit("serial_geoData", { portName, data: `geo|${geoWithCRC}\n` });
                     //ทดสอบ
                     console.log(`✅ Send geo to ${portName}: ${geohashValue}`);
@@ -252,13 +252,13 @@ io.on("connection", (socket) => {
                 console.log(message);
                 const port = activePorts[portName];
                 const maxRetries = 3;
-                const msgWithCRC = addCRC(message);
+                const msgWithCRC = addCRC(`msg|${msgWithCRC}`);
                 let retries;
                 for ( retries = 0; retries < maxRetries; retries++) {
                 try {
                     //ส่งออกไหม
 
-                    port.write(`msg|${msgWithCRC}\n`);
+                    port.write(`${msgWithCRC}\n`);
                    // socket.emit("serial_geoData", { portName, data: `msg|${msgWithCRC}\n` });
                     //ทดสอบ
                     console.log(`✅ Sending message to ${portName}: ${msgWithCRC}`);
