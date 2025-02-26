@@ -232,6 +232,11 @@ io.on("connection", (socket) => {
                 socket.emit("send_error", { portName, error: "ACK timeout" });
                 return;
             }
+            if (!sendBuffer || offset >= sendBuffer.length) {
+                console.log("✅ Sending complete.");
+                io.emit("send-complete");
+                return;
+              }
 
     } catch (error) {
         console.error(`Error sending to ${portName}:`, error);
@@ -319,7 +324,8 @@ io.on("connection", (socket) => {
         console.error(`Error sending to ${portName}:`, error);
         socket.emit("send_error", { portName, error: error.message });
     } finally {
-        delete pendingAck[portName];; // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
+        delete pendingAck[portName];
+        // รีเซ็ตสถานะเมื่อส่งเสร็จ หรือถูกยกเลิก
     }
 
         // socket.emit("send_error", { portName, totalSent: sentBytes });

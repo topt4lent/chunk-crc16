@@ -437,6 +437,8 @@ function stopTimer() {
         reader.readAsDataURL(file);
     }
 
+
+
     socket.on("serial_geoData", ({ portName, data }) => {
     const outputDiv = document.getElementById("output");
     outputDiv.innerHTML += `<p><strong>MGRS From ${portName} :</strong> ${data}</p>`;
@@ -501,7 +503,7 @@ socket.on("serial_data", ({ portName, data }) => {
     // 📌 เมื่อเจอ `|EOF` → ไฟล์รูปภาพหรือ PDF ครบถ้วนแล้ว แสดงผล
     if (bufferedData.includes("|EOF")) {
         bufferedData = bufferedData.replace("|EOF", "").trim(); // ลบ `|EOF`
-
+        console.log(bufferedData);
         switch (true) {
             case bufferedData.startsWith("data:image"):
                 document.getElementById("h-image").style.display = "block";
