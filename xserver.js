@@ -179,7 +179,7 @@ io.on("connection", (socket) => {
                     //ส่งออกไหม
 
                     port.write(`geo|${geoWithCRC}\n`);
-                    socket.emit("serial_geoData", { portName, data: `geo|${geoWithCRC}\n` });
+                   // socket.emit("serial_geoData", { portName, data: `geo|${geoWithCRC}\n` });
                     //ทดสอบ
                     console.log(`✅ Send geo to ${portName}: ${geohashValue}`);
                     //5555555
@@ -261,7 +261,7 @@ io.on("connection", (socket) => {
                     //ส่งออกไหม
 
                     port.write(`geo|${msgWithCRC}\n`);
-                    socket.emit("serial_geoData", { portName, data: `msg|${msgWithCRC}\n` });
+                   // socket.emit("serial_geoData", { portName, data: `msg|${msgWithCRC}\n` });
                     //ทดสอบ
                     console.log(`✅ Sending message to ${portName}: ${msgWithCRC}`);
                     //5555555
