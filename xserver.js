@@ -23,7 +23,7 @@ const tryAgain = {};
 // Helper function to add CRC
 const addCRC = (chunk) => {
     const checksum = crc.crc16ccitt(chunk).toString(16).padStart(4, "0");
-    return `${chunk}${checksum}\n`; 
+    return `${chunk}${checksum}`; 
 };
 
 // Helper function to check CRC
