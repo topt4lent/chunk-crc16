@@ -139,7 +139,18 @@ io.on("connection", (socket) => {
             return;
         }
         try {
-        const latLong = mgrs.toPoint(message);
+                let latLong;
+                try {
+                    latLong = mgrs.toPoint(message);
+                } catch (error) {
+                    console.error("MGRS conversion failed:", error.message);
+                    return; // หรือส่งค่า default เช่น null หรือค่าพิกัดเริ่มต้น
+                }
+                
+                // ใช้งาน latLong ต่อไปถ้าการแปลงสำเร็จ
+                if (latLong) {
+                    console.log("Converted MGRS to Lat/Lon:", latLong);
+                }
         const geohashValue = geohash.encode(latLong[0], latLong[1]);
         console.log(geohashValue);
         const port = activePorts[portName];

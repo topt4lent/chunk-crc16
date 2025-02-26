@@ -366,7 +366,7 @@
 
     function sendGeo() {
         const geo = document.getElementById("inputGeo").value;
-        if (selectedPort && message.trim() !== "") {
+        if (selectedPort && geo.trim() !== "") {
             socket.emit("send_geo", { portName: selectedPort, message: `${geo}` });
             document.getElementById("inputGeo").value = "";
         }

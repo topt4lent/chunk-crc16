@@ -1,8 +1,7 @@
 const express = require("express");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-const socketHandler = require("./routes/socketHandler");
-
+const socketHandler = require(__dirname + "/src/routes/socketHandler");
 const app = express();
 const server = createServer(app);
 const io = new Server(server);

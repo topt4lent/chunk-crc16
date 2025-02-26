@@ -22,7 +22,46 @@ const openPort = (portName, baudRate) => {
 
         const parser = serialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
         serialPort.on("data", (data) => {
-            // Add serial port data handling logic
+           console.log(`Received from ${portName}: ${data}`);
+                           //ถ้าเป็น ACK ไม่ต้อง ตอบ
+                           if (data.trim() === "ACK") {
+                               console.log("✅ Received ACK!");
+                               if (pendingAcks[portName]) {
+                                   console.log("🔵 Resolving pending ACK...");
+                                   pendingAcks[portName](true);
+                                   delete pendingAcks[portName];
+                               }
+                               return;
+                           }
+                           if (data.includes('|geo')){
+                               const dataGeo = data.slice(0, -4);
+                               console.log(`dataGeo:${dataGeo}`)
+                               const decodeGeo = geohash.decode(decodeGeo);
+                               console.log(`decodeGeo = lat:${decodeGeo.latitude} , lon:${decodeGeo.longitude}`);
+                               const dataMgrs = mgrs.forward([decodeGeo.longitude, decodeGeo.latitude]); 
+                               console.log(`toMgrs :${dataMgrs}`);
+                               sendAck();
+                               socket.emit("serial_data", { portName, data: dataMgrs });
+                           }else if (checkCRC(data)) {
+                               socket.emit("serial_data", { portName, data: data.slice(0, -4) });
+                               console.log("✅ Data CRC check passed");
+                               const ackMessage = "ACK";
+                               const ackWithCRC = addCRC(ackMessage)
+                                   if (!data.includes("ACK")) {
+                                       activePorts[portName].write(`${ackWithCRC}\n`)
+                                       console.log("🔵 Send ACK...");
+                                       //ตอบ ACK ไป websocket
+                                       socket.emit("ack", { portName });
+                                   }  
+                           } else {
+                               const nackMessage = "NACK";
+                               const nackWithCRC = addCRC(nackMessage)
+                               if (!data.includes("NACK")) {
+                               //ตอบ NACK
+                               activePorts[portName].write(`${nackWithCRC}\n`)}
+                               console.log("❌ CRC failed, sending NACK");
+                               socket.emit("nack", { portName });
+                           }
         });
 
         serialPort.on("error", (err) => {
