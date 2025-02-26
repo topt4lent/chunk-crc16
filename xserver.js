@@ -65,7 +65,10 @@ io.on("connection", (socket) => {
             const serialPort = new SerialPort({
                 path: portName,
                 baudRate: parseInt(baudRate),
-          
+                dataBits: 8,
+                stopBits: 2,
+                parity: "none",
+                rtscts: true,
   
             });
 
@@ -232,11 +235,7 @@ io.on("connection", (socket) => {
                 socket.emit("send_error", { portName, error: "ACK timeout" });
                 return;
             }
-            if (!sendBuffer || offset >= sendBuffer.length) {
-                console.log("✅ Sending complete.");
-                io.emit("send-complete");
-                return;
-              }
+          
 
     } catch (error) {
         console.error(`Error sending to ${portName}:`, error);
@@ -346,6 +345,7 @@ io.on("connection", (socket) => {
         const totalLength = dataBuffer.length;
         const maxRetries = 3;
         isUploading[portName] = true;
+      
 
         while (sentBytes < totalLength &&  isUploading[portName]) {
             
@@ -383,7 +383,12 @@ io.on("connection", (socket) => {
                    console.log(chunkWithCRC);
                    const progress = Math.floor((sentBytes / totalLength) * 100);
                     socket.emit("send_progress", { portName,progress, sent: sentBytes, total: dataBuffer.length });
-            
+                    if (chunkWithCRC.includes('|EOF')){
+                        socket.emit("send_complete", { portName, totalSent: sentBytes });
+
+                    }
+                   
+
                         // รอ ACK พร้อม timeout (5 วินาที)
                         ackReceived = new Promise((resolve) => {
                             pendingAcks[portName] = resolve;
@@ -420,7 +425,12 @@ io.on("connection", (socket) => {
                 return;
             }
 
-            sentBytes += chunk.length;
+            // if (!sentBytes >= dataBuffer.length) {
+            //     console.log("✅ Sending complete.");
+            //     io.emit("send-complete");
+            //     return;
+            //   }
+              sentBytes += chunk.length;
         }
     } catch (error) {
         console.error(`Error sending to ${portName}:`, error);
